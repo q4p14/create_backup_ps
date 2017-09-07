@@ -51,39 +51,79 @@ function FullBackup (){
 
 # Differential Backup Function
 function DiffBackup (){
+  # Assign the value of the global variables to their local counterparts
   $local:src = $global:src
   $local:dst = $global:dst
 
+  # Get the last full backup by filtering all items in the destination. Then
+  # sort them by last write time and get the last one (ergo newest)
   $last_full = Get-ChildItem -Directory -Path $local:dst\* -Filter "*-v" | Sort-Object `
   LastWriteTime -Descending | Select-Object -First 1
 
+  # For each item in the source that is newer than the creation time of the last
+  # full backup...
   foreach ($item in (Get-ChildItem -Recurse -Path $local:src\* | Where-Object { $_.LastWriteTime -gt (Get-Item $last_full).LastWriteTime})) {
-  Copy-Item -Recurse -Container -Path $item.FullName -Destination "$local:dst\$current_date-d\"
+    # ... create all subdirectories by spliting the path of the original file,
+    # and replacing everything the matches the source to the new destination
+    New-Item -Type Directory -Path ((Split-Path $item.FullName) -replace [regex]::Escape("$local:src"),"$local:dst\$current_date-d")
+  }
+
+  # Do a similiar thing as with item creation...
+  foreach ($item in (Get-ChildItem -Recurse -Path $local:src\* | Where-Object { $_.LastWriteTime -gt (Get-Item $last_full).LastWriteTime})) {
+  # ... but this time copy the files found to the newly created subdirectories
+  Copy-Item -Path $item.FullName -Destination ($item.FullName -replace [regex]::Escape("$local:src"),"$local:dst\$current_date-d")
   }
 }
 
 # Incremental Backup Function
 function IncrBackup (){
+  # Assign the value of the global variables to their local counterparts
   $local:src = $global:src
   $local:dst = $global:dst
 
+  # Get the last incremental backup by filtering all items in the destination. Then
+  # sort them by last write time and get the last one (ergo newest)
   $last_incr = Get-ChildItem -Directory -Path $local:dst\* -Filter "*-i" | Sort-Object `
   LastWriteTime -Descending | Select-Object -First 1
 
-  if (Test-Path $last_incr) {
+  # If there is a a last incremetal backup (path not empty)...
+  if ($last_incr) {
+    # For each item in the source that is newer than the creation time of the last
+    # incremental backup...
+      foreach ($item in (Get-ChildItem -Recurse -Path $local:src\* | Where-Object { $_.LastWriteTime -gt (Get-Item $last_incr).LastWriteTime})) {
+      # ... create all subdirectories by spliting the path of the original file,
+      # and replacing everything the matches the source to the new destination
+      New-Item -Type Directory -Path ((Split-Path $item.FullName) -replace [regex]::Escape("$local:src"),"$local:dst\$current_date-i")
+    }
+
+    # Do a similiar thing as with item creation...
     foreach ($item in (Get-ChildItem -Recurse -Path $local:src\* | Where-Object { $_.LastWriteTime -gt (Get-Item $last_incr).LastWriteTime})) {
-    Write-Host $item.FullName
+    # ... but this time copy the files found to the newly created subdirectories
     Copy-Item -Path $item.FullName -Destination ($item.FullName -replace [regex]::Escape("$local:src"),"$local:dst\$current_date-i")
-  }} else {
+    }
+
+    # If the path was empty, there was no no incremental backup
+  } else {
+    # Get the last full backup by filtering all items in the destination. Then
+    # sort them by last write time and get the last one (ergo newest)
     $last_full = Get-ChildItem -Directory -Path $local:dst\* -Filter "*-v" | Sort-Object `
     LastWriteTime -Descending | Select-Object -First 1
 
+    # For each item in the source that is newer than the creation time of the last
+    # full backup...
     foreach ($item in (Get-ChildItem -Recurse -Path $local:src\* | Where-Object { $_.LastWriteTime -gt (Get-Item $last_full).LastWriteTime})) {
-    Copy-Item -Path $item.FullName -Destination ($item.FullName -replace [regex]::Escape("$local:src"),"$local:dst\$current_date-i")
+      # ... create all subdirectories by spliting the path of the original file,
+      # and replacing everything the matches the source to the new destination
+      New-Item -Type Directory -Path ((Split-Path $item.FullName) -replace [regex]::Escape("$local:src"),"$local:dst\$current_date-i")
+    }
+
+    # Do a similiar thing as with item creation...
+    foreach ($item in (Get-ChildItem -Recurse -Path $local:src\* | Where-Object { $_.LastWriteTime -gt (Get-Item $last_full).LastWriteTime})) {
+      # ... but this time copy the files found to the newly created subdirectories
+      Copy-Item -Path $item.FullName -Destination ($item.FullName -replace [regex]::Escape("$local:src"),"$local:dst\$current_date-i")
+    }
   }
  }
-}
-
 
 #### Testing which backup to run ###############################################
 ################################################################################
@@ -94,7 +134,6 @@ If (!(Get-ChildItem -Path "$global:dst" | Where-Object { $_.Name -match `
 {
   FullBackup $gloabal:dst $gloabal:src
   $test = Get-ChildItem -Path "$global:dst" -Filter "$bak_pattern"
-  Write-Host $test
 }else{
   # ... decide which backup to run:
   # If the files are older than the offset for a full backup, start a full
@@ -103,16 +142,17 @@ If (!(Get-ChildItem -Path "$global:dst" | Where-Object { $_.Name -match `
   # differential backup.
   # Otherwise the file is newer than the offset for the diff backup and an
   # incremental backup will be run.
-  If (Test-Path -Path $dst_last -OlderThan ($check_date - $offset_full))
+  If (Test-Path -Path $dst_last.FullName -OlderThan ($check_date - $offset_full))
   {
     FullBackup
   }else{
-    If (Test-Path -Path $dst_last -OlderThan ($check_date - $offset_diff))
+    If (Test-Path -Path $dst_last.FullName -OlderThan ($check_date - $offset_diff))
     {
       DiffBackup
+      #Write-Host "l2p m7+1"
     }else{
-      #IncrBackup
-      DiffBackup
+      IncrBackup
+      #Write-Host "u wat m8"
      }
   }
 
