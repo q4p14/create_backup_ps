@@ -1,4 +1,3 @@
-$_.LastWriteTime = $original_lwt
 #### Variable Assignment #######################################################
 ################################################################################
 
@@ -58,15 +57,33 @@ function DiffBackup (){
   $last_full = Get-ChildItem -Directory -Path $local:dst\* -Filter "*-v" | Sort-Object `
   LastWriteTime -Descending | Select-Object -First 1
 
-  Write-Host (Get-ChildItem -Recurse -Path $local:src\* | Where-Object { $_.LastWriteTime -gt (Get-Item $last_full).LastWriteTime})
-
+  foreach ($item in (Get-ChildItem -Recurse -Path $local:src\* | Where-Object { $_.LastWriteTime -gt (Get-Item $last_full).LastWriteTime})) {
+  Copy-Item -Recurse -Container -Path $item.FullName -Destination "$local:dst\$current_date-d\"
+  }
 }
 
 # Incremental Backup Function
 function IncrBackup (){
   $local:src = $global:src
   $local:dst = $global:dst
+
+  $last_incr = Get-ChildItem -Directory -Path $local:dst\* -Filter "*-i" | Sort-Object `
+  LastWriteTime -Descending | Select-Object -First 1
+
+  if (Test-Path $last_incr) {
+    foreach ($item in (Get-ChildItem -Recurse -Path $local:src\* | Where-Object { $_.LastWriteTime -gt (Get-Item $last_incr).LastWriteTime})) {
+    Write-Host $item.FullName
+    Copy-Item -Path $item.FullName -Destination ($item.FullName -replace [regex]::Escape("$local:src"),"$local:dst\$current_date-i")
+  }} else {
+    $last_full = Get-ChildItem -Directory -Path $local:dst\* -Filter "*-v" | Sort-Object `
+    LastWriteTime -Descending | Select-Object -First 1
+
+    foreach ($item in (Get-ChildItem -Recurse -Path $local:src\* | Where-Object { $_.LastWriteTime -gt (Get-Item $last_full).LastWriteTime})) {
+    Copy-Item -Path $item.FullName -Destination ($item.FullName -replace [regex]::Escape("$local:src"),"$local:dst\$current_date-i")
+  }
+ }
 }
+
 
 #### Testing which backup to run ###############################################
 ################################################################################
@@ -88,15 +105,15 @@ If (!(Get-ChildItem -Path "$global:dst" | Where-Object { $_.Name -match `
   # incremental backup will be run.
   If (Test-Path -Path $dst_last -OlderThan ($check_date - $offset_full))
   {
-    FullBackup $gloabal:dst $gloabal:src
+    FullBackup
   }else{
     If (Test-Path -Path $dst_last -OlderThan ($check_date - $offset_diff))
     {
-      DiffBackup $gloabal:dst $gloabal:src
-    }else{
-      #IncrBackup $gloabal:dst $gloabal:src
       DiffBackup
-    }
+    }else{
+      #IncrBackup
+      DiffBackup
+     }
   }
 
 }
