@@ -2,11 +2,11 @@
 ################################################################################
 
 # Get source and destination from user input, assign as global variables
-Param($global:src,$global:dst)
+#Param($global:src,$global:dst)
 
 # Global variables src and dst, assigning for testing
-#$src = "C:\Users\bob\Documents\Backups2"
-#$dst = "C:\Users\bob\Documents\Test2"
+$src = "C:\Users\bob\Documents\Backups2"
+$dst = "C:\Users\bob\Documents\Test2"
 
 #### Check for backups and restore #############################################
 ################################################################################
@@ -22,11 +22,11 @@ if ($last_full) {
     Write-Host "Restored $last_full"
 
     # Get the date of the last full backup for comparison
-    $last_full_date = $last_full.LastWriteTime
+    $last_date = $last_full.LastWriteTime
 
     # Get the last differential backup
     $last_diff = Get-ChildItem -Directory -Path $src\* -Filter "*-d" | `
-    Where-Object { $_.LastWriteTime -gt $last_full_date } | Sort-Object LastWriteTime -Descending `
+    Where-Object { $_.LastWriteTime -gt $last_date } | Sort-Object LastWriteTime -Descending `
     | Select-Object -First 1
 
     # If there is a differential backup, restore the differential backup
@@ -35,11 +35,14 @@ if ($last_full) {
       # Copy the differential backup to the destination
       Copy-Item -Recurse -Path $last_diff\* -Force -Destination $dst
       Write-Host "Restored $last_diff"
+
+      # Get the last differential backup date
+      $last_date = $last_diff.LastWriteTime
     }
 
     # Get the last set of incremental backups and sort by oldest to newest
     $last_incr = Get-ChildItem -Directory -Path $src\* -Filter "*-i" | `
-    Where-Object { $_.LastWriteTime -gt $last_full_date } | Sort-Object LastWriteTime
+    Where-Object { $_.LastWriteTime -gt $last_date } | Sort-Object LastWriteTime
 
     # If there are incremental backups, restore incremental backups from oldest to newest
     if ($last_incr){
