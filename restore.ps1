@@ -2,11 +2,11 @@
 ################################################################################
 
 # Get source and destination from user input, assign as global variables
-#Param($global:src,$global:dst)
+Param($global:src,$global:dst)
 
 # Global variables src and dst, assigning for testing
-$src = "C:\Users\bob\Documents\Backups2"
-$dst = "C:\Users\bob\Documents\Test2"
+#$src = "C:\Users\bob\Documents\Backups2"
+#$dst = "C:\Users\bob\Documents\Test2"
 
 #### Check for backups and restore #############################################
 ################################################################################
