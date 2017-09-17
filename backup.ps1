@@ -2,11 +2,11 @@
 ################################################################################
 
 # Get source and destination from user input, assign as global variables
-#Param($global:src,$global:dst)
+Param($global:src,$global:dst)
 
 # Global variables src and dst, assigning for testing
-$global:src = "C:\Users\bob\Documents\Test"
-$global:dst = "C:\Users\bob\Documents\Backups"
+#$global:src = "C:\Users\bob\Documents\Test"
+#$global:dst = "C:\Users\bob\Documents\Backups"
 # Get the current date for renaming folders later
 $current_date = Get-Date -Format "yyyy-MM-dd-hh-mm"
 $check_date = Get-Date
